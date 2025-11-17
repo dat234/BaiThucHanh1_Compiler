@@ -9,6 +9,7 @@
 
 ### 1. Biên dịch (Compile)
 Mở Terminal tại thư mục bài tập và chạy lệnh sau để tạo file chạy:
+
 gcc main.c -o indexer
 
 .\indexer.exe vanban.txt
