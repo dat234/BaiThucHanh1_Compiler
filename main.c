@@ -9,11 +9,13 @@
 #define MAX_LINES 2000      
 #define MAX_STOPW 100
 
+// Cấu trúc từ điển cập nhật
 typedef struct {
     char word[MAX_LEN];
     int *lines;             
-    int lineCount;
+    int lineCount;          // Số lượng dòng ĐÃ LƯU (không tính trùng lặp dòng liên tiếp)
     int lineCapacity;       
+    int totalCount;         // Tổng số lần từ xuất hiện (tính cả lặp lại trên cùng 1 dòng)
 } WordItem;
 
 char stopWords[MAX_STOPW][MAX_LEN];
@@ -53,10 +55,16 @@ int isStopWord(char *word) {
 void addToDictionary(char *word, int lineNumber) {
     for (int i = 0; i < dictCount; i++) {
         if (strcmp(dictionary[i].word, word) == 0) {
+            // TỪ ĐÃ TỒN TẠI:
+            dictionary[i].totalCount++; // Tăng tổng số lần xuất hiện lên
+            
+            // Logic lưu dòng: Chỉ lưu nếu dòng này khác dòng vừa lưu gần nhất (tránh 1, 1, 1)
             if (dictionary[i].lineCount > 0 && 
                 dictionary[i].lines[dictionary[i].lineCount - 1] == lineNumber) {
-                return;
+                return; // Đã có dòng này rồi thì thôi không lưu số dòng nữa
             }
+
+            // Mở rộng bộ nhớ nếu đầy
             if (dictionary[i].lineCount >= dictionary[i].lineCapacity) {
                 if (dictionary[i].lineCapacity < MAX_LINES) { 
                      dictionary[i].lineCapacity += 100; 
@@ -70,10 +78,14 @@ void addToDictionary(char *word, int lineNumber) {
         }
     }
 
+    // TỪ MỚI (CHƯA CÓ):
     if (dictCount < MAX_WORDS) {
         strcpy(dictionary[dictCount].word, word);
+        dictionary[dictCount].totalCount = 1; // Khởi tạo số lần xuất hiện là 1
+        
         dictionary[dictCount].lineCapacity = 50;
         dictionary[dictCount].lines = (int*)malloc(dictionary[dictCount].lineCapacity * sizeof(int));
+        
         dictionary[dictCount].lines[0] = lineNumber;
         dictionary[dictCount].lineCount = 1;
         dictCount++;
@@ -121,28 +133,32 @@ int compareWords(const void *a, const void *b) {
     return strcmp(((WordItem*)a)->word, ((WordItem*)b)->word);
 }
 
-// --- HÀM MAIN MỚI ---
+// --- HÀM MAIN ---
 int main(int argc, char *argv[]) {
-    // Kiểm tra xem người dùng có nhập tên file không
     if (argc < 2) {
         printf("Cach su dung:\n");
-        printf("   Windows: .\\indexer.exe <ten_file_can_doc>\n");
-        printf("   Vi du:   .\\indexer.exe alice30.txt\n");
+        printf("   .\\indexer.exe <ten_file_can_doc>\n");
         return 1;
     }
 
     loadStopWords("stopw.txt");
-    
-    // argv[1] chính là cái tên file bạn gõ sau lệnh ./indexer
-    printf("Dang xu ly file: %s ...\n", argv[1]);
     processText(argv[1]);
-    
     qsort(dictionary, dictCount, sizeof(WordItem), compareWords);
 
-    printf("Ket qua:\n");
-    printf("--------------------------------------\n");
+    // IN KẾT QUẢ THEO ĐỊNH DẠNG MỚI
+    // Mẫu: answer 7, 8, 12, 15
+    // (Word) (Count), (Line), (Line)...
+    
+    printf("\nKET QUA:\n");
     for (int i = 0; i < dictCount; i++) {
-        printf("%-15s", dictionary[i].word);
+        // In Từ và Tổng số lần xuất hiện trước
+        printf("%-15s %d", dictionary[i].word, dictionary[i].totalCount);
+        
+        // In danh sách các dòng
+        if (dictionary[i].lineCount > 0) {
+            printf(", "); // Dấu phẩy ngăn cách giữa Count và Line đầu tiên
+        }
+        
         for (int j = 0; j < dictionary[i].lineCount; j++) {
             printf("%d", dictionary[i].lines[j]);
             if (j < dictionary[i].lineCount - 1) printf(", ");
@@ -150,6 +166,7 @@ int main(int argc, char *argv[]) {
         printf("\n");
     }
     
+    // Giải phóng bộ nhớ
     for(int i=0; i<dictCount; i++) free(dictionary[i].lines);
     free(dictionary);
 
